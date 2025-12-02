@@ -278,7 +278,7 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
   const addEvidence = () => {
     const newEvidence: Evidence = {
       id: `new-${Date.now()}`,
-      evidence_type: '',
+      evidence_type: "file",
       file_name: '',
       description: ''
     };
@@ -519,6 +519,7 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
               const { data, error } = await supabase
                 .from("evidence")
                 .insert({
+                  case_id: caseId,
                   evidence_type: e.evidence_type as any,
                   evidence_number: `EV-${Date.now()}`,
                   file_name: e.file_name,
@@ -568,6 +569,7 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
             const { data, error } = await supabase
               .from("evidence")
               .insert({
+                case_id: caseId,
                 evidence_type: e.evidence_type as any,
                 evidence_number: `EV-${Date.now()}`,
                 file_name: e.file_name,

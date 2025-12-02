@@ -3,10 +3,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import {
   LayoutDashboard,
-  Users,
   FolderOpen,
-  FileSearch,
-  ClipboardList,
   LogOut,
   Menu,
   X,
@@ -30,10 +27,7 @@ export function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: true },
-    { name: "Korban", href: "/victims", icon: Users, show: true },
     { name: "Kasus", href: "/cases", icon: FolderOpen, show: true },
-    { name: "Barang Bukti", href: "/evidence", icon: FileSearch, show: true },
-    { name: "Tindakan Forensik", href: "/forensic-actions", icon: ClipboardList, show: true },
   ];
 
   return (
@@ -59,8 +53,7 @@ export function Layout({ children }: LayoutProps) {
               <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-bold">Digital Forensic</h1>
-              <p className="text-xs text-muted-foreground">Incident Handling</p>
+              <p className="text-sm font-bold">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</p>
             </div>
           </div>
 

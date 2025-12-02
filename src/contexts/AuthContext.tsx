@@ -65,16 +65,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("user_id", userId)
         .order("role", { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to handle no results
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
         console.error("Error fetching user role:", error);
         return;
       }
 
-      setUserRole(data?.role as UserRole);
+      // If no role exists, assign default 'viewer' role locally
+      if (!data) {
+        console.log("No role found for user, using default 'viewer' role");
+        setUserRole('viewer');
+      } else {
+        setUserRole(data.role as UserRole);
+      }
     } catch (error) {
       console.error("Error in fetchUserRole:", error);
+      // Fallback to viewer role on any error
+      setUserRole('viewer');
     }
   };
 
@@ -89,8 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       toast.success("Berhasil masuk!");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Gagal masuk");
+    } catch (error: unknown) {
+      console.error('Error during sign in:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal masuk';
+      toast.error(errorMessage || "Gagal masuk");
       throw error;
     }
   };
@@ -113,8 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       toast.success("Akun berhasil dibuat! Silakan masuk.");
-    } catch (error: any) {
-      toast.error(error.message || "Gagal membuat akun");
+    } catch (error: unknown) {
+      console.error('Error during sign up:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal membuat akun';
+      toast.error(errorMessage || "Gagal membuat akun");
       throw error;
     }
   };
@@ -129,8 +141,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserRole(null);
       toast.success("Berhasil keluar");
       navigate("/auth");
-    } catch (error: any) {
-      toast.error(error.message || "Gagal keluar");
+    } catch (error: unknown) {
+      console.error('Error during sign out:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal keluar';
+      toast.error(errorMessage || "Gagal keluar");
       throw error;
     }
   };

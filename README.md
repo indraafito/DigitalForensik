@@ -55,7 +55,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 VITE_SUPABASE_URL="your-supabase-url"
 ```
 
-## 📄 License
+## � License
 
 MIT License - lihat file [LICENSE](LICENSE) untuk detail.
 

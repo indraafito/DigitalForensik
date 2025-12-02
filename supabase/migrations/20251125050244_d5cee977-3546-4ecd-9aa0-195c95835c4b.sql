@@ -364,6 +364,19 @@ CREATE TRIGGER update_forensic_actions_updated_at
   BEFORE UPDATE ON public.forensic_actions
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Add types for suspect status and involvement level
+DO $$ BEGIN
+    CREATE TYPE suspect_status AS ENUM ('suspect', 'person_of_interest', 'charged', 'cleared');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE involvement_level AS ENUM ('primary', 'secondary', 'witness');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- Create indexes for better performance
 CREATE INDEX idx_user_roles_user_id ON public.user_roles(user_id);
 CREATE INDEX idx_victims_created_by ON public.victims(created_by);

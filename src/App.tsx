@@ -10,10 +10,7 @@ import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Victims from "./pages/Victims";
 import Cases from "./pages/Cases";
-import Evidence from "./pages/Evidence";
-import ForensicActions from "./pages/ForensicActions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,10 +27,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-              <Route path="/victims" element={<ProtectedRoute><Layout><Victims /></Layout></ProtectedRoute>} />
               <Route path="/cases" element={<ProtectedRoute><Layout><Cases /></Layout></ProtectedRoute>} />
-              <Route path="/evidence" element={<ProtectedRoute><Layout><Evidence /></Layout></ProtectedRoute>} />
-              <Route path="/forensic-actions" element={<ProtectedRoute><Layout><ForensicActions /></Layout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>

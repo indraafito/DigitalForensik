@@ -4,6 +4,7 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -15,3 +16,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Client for file uploads with service role (if available)
+export const supabaseAdmin = SUPABASE_SERVICE_KEY 
+  ? createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    })
+  : supabase;

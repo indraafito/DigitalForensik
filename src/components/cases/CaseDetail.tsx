@@ -28,7 +28,9 @@ import {
   Activity,
   Users,
   FolderOpen,
-  CheckCircle
+  CheckCircle,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 interface CaseVictim {
@@ -117,6 +119,8 @@ export function CaseDetail({ caseData, onUpdate, onEdit, onDelete }: CaseDetailP
   const [isRealtime, setIsRealtime] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [expandedVictim, setExpandedVictim] = useState(false);
+  const [expandedSuspects, setExpandedSuspects] = useState<Record<string, boolean>>({});
 
   const statusColors = {
     open: "bg-blue-100 text-blue-800",
@@ -434,30 +438,54 @@ export function CaseDetail({ caseData, onUpdate, onEdit, onDelete }: CaseDetailP
               </h2>
               
               {caseData.victims ? (
-                <div className="p-4 border-2 border-blue-200 rounded-lg bg-blue-50/50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-lg">{caseData.victims.name}</div>
-                      <div className="text-sm text-gray-600">Korban Utama</div>
+                <div className="space-y-2">
+                  {/* Compact Victim Card */}
+                  <div 
+                    className="p-3 border border-blue-200 rounded-lg bg-blue-50/50 cursor-pointer hover:bg-blue-100/50 transition-colors"
+                    onClick={() => setExpandedVictim(!expandedVictim)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">{caseData.victims.name}</div>
+                          <div className="text-sm text-gray-600">Korban Utama</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs bg-white">
+                          Korban
+                        </Badge>
+                        {expandedVictim ? (
+                          <ChevronUp className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    {caseData.victims.contact && (
-                      <div className="flex items-center gap-2 p-2 bg-white rounded">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{caseData.victims.contact}</span>
+                  
+                  {/* Expanded Details */}
+                  {expandedVictim && (
+                    <div className="p-4 border border-blue-200 rounded-lg bg-blue-50/30 mt-2">
+                      <div className="space-y-3">
+                        {caseData.victims.contact && (
+                          <div className="flex items-center gap-2 p-2 bg-white rounded">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm">{caseData.victims.contact}</span>
+                          </div>
+                        )}
+                        {caseData.victims.location && (
+                          <div className="flex items-center gap-2 p-2 bg-white rounded">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm">{caseData.victims.location}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {caseData.victims.location && (
-                      <div className="flex items-center gap-2 p-2 bg-white rounded">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{caseData.victims.location}</span>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-12 bg-gray-50 rounded-lg">
@@ -479,65 +507,85 @@ export function CaseDetail({ caseData, onUpdate, onEdit, onDelete }: CaseDetailP
               </h2>
               
               {caseData.case_suspects && caseData.case_suspects.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {caseData.case_suspects.map((caseSuspect) => (
-                    <div key={caseSuspect.suspect_id} className="p-4 border-2 border-red-200 rounded-lg bg-red-50/50">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                            <UserX className="h-5 w-5 text-red-600" />
+                    <div key={caseSuspect.suspect_id} className="space-y-2">
+                      {/* Compact Suspect Card */}
+                      <div 
+                        className="p-3 border border-red-200 rounded-lg bg-red-50/50 cursor-pointer hover:bg-red-100/50 transition-colors"
+                        onClick={() => setExpandedSuspects(prev => ({
+                          ...prev,
+                          [caseSuspect.suspect_id]: !prev[caseSuspect.suspect_id]
+                        }))}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                              <UserX className="h-4 w-4 text-red-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold">{caseSuspect.suspects.name}</div>
+                              <div className="text-sm text-gray-600">Tersangka</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-semibold text-lg">{caseSuspect.suspects.name}</div>
-                            <div className="text-sm text-gray-600">Tersangka</div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs bg-white">
+                              {caseSuspect.involvement_level === 'primary' ? 'Utama' :
+                               caseSuspect.involvement_level === 'secondary' ? 'Sekunder' :
+                               caseSuspect.involvement_level === 'witness' ? 'Saksi' : 'Tidak Diketahui'}
+                            </Badge>
+                            <Badge className={
+                              caseSuspect.suspects.status === 'suspect' ? 'bg-red-100 text-red-800 border-red-200' :
+                              caseSuspect.suspects.status === 'person_of_interest' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                              caseSuspect.suspects.status === 'charged' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                              caseSuspect.suspects.status === 'cleared' ? 'bg-green-100 text-green-800 border-green-200' :
+                              'bg-gray-100 text-gray-800 border-gray-200'
+                            }>
+                              {caseSuspect.suspects.status === 'suspect' ? 'Tersangka' :
+                               caseSuspect.suspects.status === 'person_of_interest' ? 'Orang Penting' :
+                               caseSuspect.suspects.status === 'charged' ? 'Dituntut' :
+                               caseSuspect.suspects.status === 'cleared' ? 'Dibebaskan' : caseSuspect.suspects.status}
+                            </Badge>
+                            {expandedSuspects[caseSuspect.suspect_id] ? (
+                              <ChevronUp className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            )}
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="text-xs">
-                            {caseSuspect.involvement_level === 'primary' ? 'Utama' :
-                             caseSuspect.involvement_level === 'secondary' ? 'Sekunder' :
-                             caseSuspect.involvement_level === 'witness' ? 'Saksi' : 'Tidak Diketahui'}
-                          </Badge>
-                          <Badge className={
-                            caseSuspect.suspects.status === 'suspect' ? 'bg-red-100 text-red-800 border-red-200' :
-                            caseSuspect.suspects.status === 'person_of_interest' ? 'bg-orange-100 text-orange-800 border-orange-200' :
-                            caseSuspect.suspects.status === 'charged' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                            caseSuspect.suspects.status === 'cleared' ? 'bg-green-100 text-green-800 border-green-200' :
-                            'bg-gray-100 text-gray-800 border-gray-200'
-                          }>
-                            {caseSuspect.suspects.status === 'suspect' ? 'Tersangka' :
-                             caseSuspect.suspects.status === 'person_of_interest' ? 'Orang Penting' :
-                             caseSuspect.suspects.status === 'charged' ? 'Dituntut' :
-                             caseSuspect.suspects.status === 'cleared' ? 'Dibebaskan' : caseSuspect.suspects.status}
-                          </Badge>
+                      </div>
+                      
+                      {/* Expanded Details */}
+                      {expandedSuspects[caseSuspect.suspect_id] && (
+                        <div className="p-4 border border-red-200 rounded-lg bg-red-50/30 mt-2">
+                          <div className="space-y-3">
+                            {caseSuspect.suspects.contact && (
+                              <div className="flex items-center gap-2 p-2 bg-white rounded">
+                                <Phone className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm">{caseSuspect.suspects.contact}</span>
+                              </div>
+                            )}
+                            {caseSuspect.suspects.address && (
+                              <div className="flex items-center gap-2 p-2 bg-white rounded">
+                                <MapPin className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm">{caseSuspect.suspects.address}</span>
+                              </div>
+                            )}
+                            {caseSuspect.suspects.identification_number && (
+                              <div className="p-2 bg-white rounded">
+                                <span className="text-xs font-medium text-gray-500">Nomor Identitas</span>
+                                <p className="text-sm font-mono">{caseSuspect.suspects.identification_number}</p>
+                              </div>
+                            )}
+                            {caseSuspect.suspects.notes && (
+                              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                <span className="text-xs font-medium text-yellow-700">Catatan</span>
+                                <p className="text-sm text-gray-700 mt-1">{caseSuspect.suspects.notes}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        {caseSuspect.suspects.contact && (
-                          <div className="flex items-center gap-2 p-2 bg-white rounded">
-                            <Phone className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{caseSuspect.suspects.contact}</span>
-                          </div>
-                        )}
-                        {caseSuspect.suspects.address && (
-                          <div className="flex items-center gap-2 p-2 bg-white rounded">
-                            <MapPin className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{caseSuspect.suspects.address}</span>
-                          </div>
-                        )}
-                        {caseSuspect.suspects.identification_number && (
-                          <div className="p-2 bg-white rounded">
-                            <span className="text-xs font-medium text-gray-500">Nomor Identitas</span>
-                            <p className="text-sm font-mono">{caseSuspect.suspects.identification_number}</p>
-                          </div>
-                        )}
-                        {caseSuspect.suspects.notes && (
-                          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                            <span className="text-xs font-medium text-yellow-700">Catatan</span>
-                            <p className="text-sm text-gray-700 mt-1">{caseSuspect.suspects.notes}</p>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>

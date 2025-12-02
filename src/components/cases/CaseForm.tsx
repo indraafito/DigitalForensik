@@ -32,7 +32,7 @@ interface Suspect {
 
 interface Evidence {
   id: string;
-  evidence_type: string;
+  evidence_type: "file" | "image" | "video" | "document" | "log" | "network_capture" | "memory_dump" | "other";
   file_name: string;
   description: string;
   file?: File;
@@ -60,16 +60,31 @@ interface CaseFormData {
   case_type: string;
   incident_date: string;
   summary: string;
-  victims?: Victim[];
-  suspects?: Suspect[];
+  victims?: Victim | Victim[];
+  case_suspects?: Array<{
+    suspect_id: string;
+    involvement_level: string;
+    relationship_to_case?: string;
+    suspects: Suspect;
+  }>;
   evidence?: Evidence[];
-  actions?: Action[];
+  forensic_actions?: Array<{
+    id: string;
+    template_id: string;
+    action_type: string;
+    description: string;
+    is_checked: boolean;
+    is_completed: boolean;
+    performed_by: string;
+    completed_at: string | null;
+    case_id: string;
+  }>;
 }
 
 interface CaseFormProps {
-  onSubmit: (data: CaseFormData) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
-  initialData?: CaseFormData;
+  initialData?: any;
   isEdit?: boolean;
 }
 
@@ -157,12 +172,15 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
       
       // Populate victims (read-only for edit mode)
       if (initialData.victims) {
-        setVictims([{
-          id: initialData.victims.id,
-          name: initialData.victims.name || '',
-          contact: initialData.victims.contact || '',
-          location: initialData.victims.location || ''
-        }]);
+        const victimData = Array.isArray(initialData.victims) ? initialData.victims[0] : initialData.victims;
+        if (victimData) {
+          setVictims([{
+            id: victimData.id,
+            name: victimData.name || '',
+            contact: victimData.contact || '',
+            location: victimData.location || ''
+          }]);
+        }
       }
       
       // Populate evidence
@@ -258,9 +276,9 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
   };
 
   const addEvidence = () => {
-    const newEvidence = {
+    const newEvidence: Evidence = {
       id: `new-${Date.now()}`,
-      type: '',
+      evidence_type: '',
       file_name: '',
       description: ''
     };
@@ -336,7 +354,7 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
     }, 100);
   };
 
-  const detectFileType = (file: File): string => {
+  const detectFileType = (file: File): "file" | "image" | "video" | "document" | "log" | "network_capture" | "memory_dump" | "other" => {
     const extension = file.name.split('.').pop()?.toLowerCase();
     
     if (file.type.startsWith('image/')) return 'image';
@@ -366,38 +384,97 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
       console.log('Submitting form with suspects:', suspects);
       console.log('Suspects data before processing:', suspects.filter(s => s.name.trim() !== ''));
       
-      // Create new victims first (only for new cases)
+      // Create new victims for both new and edit cases
       let processedVictims = [];
+      const validVictims = victims.filter(v => v.name.trim() !== '');
       
-      if (!isEdit) {
-        const validVictims = victims.filter(v => v.name.trim() !== '');
-        const createdVictims = [];
-        
-        for (const victim of validVictims) {
-          const { data, error } = await supabase
-            .from("victims")
-            .insert({
-              name: victim.name,
-              contact: victim.contact,
-              location: victim.location,
-              created_by: user?.id
-            })
-            .select()
-            .single();
+      if (validVictims.length > 0) {
+        if (!isEdit) {
+          // Create new victims for new cases
+          const createdVictims = [];
+          
+          for (const victim of validVictims) {
+            const { data, error } = await supabase
+              .from("victims")
+              .insert({
+                name: victim.name,
+                contact: victim.contact,
+                location: victim.location,
+                created_by: user?.id
+              })
+              .select()
+              .single();
 
-          if (error) throw error;
-          createdVictims.push(data);
+            if (error) throw error;
+            createdVictims.push(data);
+          }
+          processedVictims = createdVictims;
+        } else {
+          // For edit mode, update existing victims or create new ones
+          const updatedVictims = [];
+          
+          for (const victim of validVictims) {
+            if (victim.id && !victim.id.startsWith('new-')) {
+              // Update existing victim
+              const { data, error } = await supabase
+                .from("victims")
+                .update({
+                  name: victim.name,
+                  contact: victim.contact,
+                  location: victim.location
+                })
+                .eq("id", victim.id)
+                .select()
+                .single();
+
+              if (error) throw error;
+              updatedVictims.push(data);
+            } else {
+              // Create new victim
+              const { data, error } = await supabase
+                .from("victims")
+                .insert({
+                  name: victim.name,
+                  contact: victim.contact,
+                  location: victim.location,
+                  created_by: user?.id
+                })
+                .select()
+                .single();
+
+              if (error) throw error;
+              updatedVictims.push(data);
+            }
+          }
+          processedVictims = updatedVictims;
         }
-        processedVictims = createdVictims;
-      } else {
-        // For edit, use existing victims
-        processedVictims = victims.filter(v => v.name.trim() !== '');
       }
 
-      // Create new suspects
-      const processedSuspects = suspects.filter(s => s.name.trim() !== '');
+      // Process suspects - create new or update existing (using case_suspects table)
+      const processedSuspects = [];
+      const validSuspects = suspects.filter(s => s.name.trim() !== '');
       
-      console.log('Processed suspects:', processedSuspects);
+      if (validSuspects.length > 0 && isEdit) {
+        // For edit mode, we'll just return the suspects data to be handled by the parent
+        for (const suspect of validSuspects) {
+          processedSuspects.push({
+            suspect_id: suspect.id,
+            involvement_level: suspect.involvement_level,
+            relationship_to_case: null,
+            suspects: suspect
+          });
+        }
+      } else if (validSuspects.length > 0) {
+        // For new cases, also return the suspects data
+        for (const suspect of validSuspects) {
+          processedSuspects.push({
+            suspect_id: suspect.id,
+            involvement_level: suspect.involvement_level,
+            relationship_to_case: null,
+            suspects: suspect
+          });
+        }
+      }
 
       // Process evidence with file uploads
       const processedEvidence = [];
@@ -408,7 +485,6 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
       for (const e of evidence) {
         console.log('Processing evidence item:', e);
         console.log('Has file property:', 'file' in e);
-        console.log('File property value:', e.file);
         console.log('Evidence type:', e.evidence_type);
         console.log('Has description:', !!e.description);
         
@@ -419,33 +495,152 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
             const fileUrl = await uploadFile(e.file, caseId, e.id);
             console.log('File uploaded successfully:', fileUrl);
             
-            processedEvidence.push({
-              id: e.id,
-              evidence_type: e.evidence_type,
-              file_name: e.file_name,
-              description: e.description,
-              file_url: fileUrl,
-              file_size: e.file_size
-            });
+            if (isEdit && e.id && !e.id.startsWith('new-')) {
+              // Update existing evidence
+              const { data, error } = await supabase
+                .from("evidence")
+                .update({
+                  evidence_type: e.evidence_type as any,
+                  file_name: e.file_name,
+                  description: e.description,
+                  storage_location: fileUrl,
+                  file_size: e.file_size,
+                  collected_by: user?.id,
+                  collection_date: new Date().toISOString()
+                })
+                .eq("id", e.id)
+                .select()
+                .single();
+
+              if (error) throw error;
+              processedEvidence.push(data);
+            } else {
+              // Create new evidence
+              const { data, error } = await supabase
+                .from("evidence")
+                .insert({
+                  evidence_type: e.evidence_type as any,
+                  evidence_number: `EV-${Date.now()}`,
+                  file_name: e.file_name,
+                  description: e.description,
+                  storage_location: fileUrl,
+                  file_size: e.file_size,
+                  collected_by: user?.id,
+                  collection_date: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (error) throw error;
+              processedEvidence.push(data);
+            }
           } catch (error) {
             console.error('Error uploading evidence file:', error);
             // Still add evidence without file URL if upload fails
-            processedEvidence.push({
-              id: e.id,
-              evidence_type: e.evidence_type,
-              file_name: e.file_name,
-              description: e.description
-            });
+            if (e.evidence_type && e.description) {
+              processedEvidence.push({
+                id: e.id,
+                evidence_type: e.evidence_type,
+                file_name: e.file_name,
+                description: e.description
+              });
+            }
           }
         } else if (e.evidence_type && e.description) {
           console.log('Adding evidence without file');
-          // Add evidence without file
-          processedEvidence.push({
-            id: e.id,
-            evidence_type: e.evidence_type,
-            file_name: e.file_name,
-            description: e.description
-          });
+          // Update or create evidence without file
+          if (isEdit && e.id && !e.id.startsWith('new-')) {
+            const { data, error } = await supabase
+              .from("evidence")
+              .update({
+                evidence_type: e.evidence_type as any,
+                file_name: e.file_name,
+                description: e.description,
+                collection_date: new Date().toISOString()
+              })
+              .eq("id", e.id)
+              .select()
+              .single();
+
+            if (error) throw error;
+            processedEvidence.push(data);
+          } else {
+            const { data, error } = await supabase
+              .from("evidence")
+              .insert({
+                evidence_type: e.evidence_type as any,
+                evidence_number: `EV-${Date.now()}`,
+                file_name: e.file_name,
+                description: e.description,
+                collected_by: user?.id,
+                collection_date: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+            processedEvidence.push(data);
+          }
+        }
+      }
+
+      // Process forensic actions
+      const processedActions = [];
+      const checkedActions = actions.filter(a => a.is_checked);
+      
+      if (checkedActions.length > 0) {
+        for (const action of checkedActions) {
+          if (isEdit && initialData?.forensic_actions) {
+            // Check if action already exists
+            const existingAction = initialData.forensic_actions.find((fa) => fa.template_id === action.template_id);
+            
+            if (existingAction) {
+              // Update existing action
+              const { data, error } = await supabase
+                .from("forensic_actions")
+                .update({
+                  action_type: action.action_type,
+                  description: action.description,
+                  is_checked: true,
+                  performed_by: user?.id
+                })
+                .eq("id", existingAction.id)
+                .select()
+                .single();
+
+              if (error) throw error;
+              processedActions.push({
+                ...data,
+                is_completed: existingAction.is_completed || false,
+                completed_at: existingAction.completed_at || null
+              });
+            } else {
+              // Create new action
+              const { data, error } = await supabase
+                .from("forensic_actions")
+                .insert({
+                  case_id: initialData.id!,
+                  template_id: action.template_id,
+                  action_type: action.action_type,
+                  description: action.description,
+                  is_checked: true,
+                  is_completed: false,
+                  performed_by: user?.id
+                })
+                .select()
+                .single();
+
+              if (error) throw error;
+              processedActions.push(data);
+            }
+          } else {
+            // Create new actions for new cases
+            processedActions.push({
+              ...action,
+              is_completed: false,
+              completed_at: null
+            });
+          }
         }
       }
 
@@ -458,11 +653,7 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
         victims: processedVictims,
         suspects: processedSuspects,
         evidence: processedEvidence,
-        actions: actions.filter(a => a.is_checked).map(action => ({
-          ...action,
-          is_completed: isEdit && initialData?.forensic_actions?.find((fa) => fa.template_id === action.template_id)?.is_completed || false,
-          completed_at: isEdit && initialData?.forensic_actions?.find((fa) => fa.template_id === action.template_id)?.completed_at || null
-        }))
+        actions: processedActions
       });
     } catch (error) {
       console.error("Error submitting case:", error);
@@ -566,27 +757,22 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
                 <Input
                   placeholder="Nama korban"
                   value={victim.name}
-                  onChange={(e) => !isEdit && updateVictim(victim.id, 'name', e.target.value)}
-                  disabled={isEdit}
+                  onChange={(e) => updateVictim(victim.id, 'name', e.target.value)}
                 />
                 <Input
                   placeholder="Kontak"
                   value={victim.contact}
-                  onChange={(e) => !isEdit && updateVictim(victim.id, 'contact', e.target.value)}
-                  disabled={isEdit}
+                  onChange={(e) => updateVictim(victim.id, 'contact', e.target.value)}
                 />
                 <Input
                   placeholder="Lokasi"
                   value={victim.location}
-                  onChange={(e) => !isEdit && updateVictim(victim.id, 'location', e.target.value)}
-                  disabled={isEdit}
+                  onChange={(e) => updateVictim(victim.id, 'location', e.target.value)}
                 />
               </div>
-              {!isEdit && (
-                <Button type="button" onClick={() => removeVictim(victim.id)} variant="ghost" size="sm">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+              <Button type="button" onClick={() => removeVictim(victim.id)} variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -742,11 +928,9 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
                 />
               </div>
               
-              {!isEdit && (
-                <Button type="button" onClick={() => removeEvidence(item.id)} variant="ghost" size="sm" className="mt-1">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+              <Button type="button" onClick={() => removeEvidence(item.id)} variant="ghost" size="sm" className="mt-1">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -768,7 +952,6 @@ export function CaseForm({ onSubmit, onCancel, initialData, isEdit = false }: Ca
                 id={`action-${action.template_id}`}
                 checked={action.is_checked}
                 onCheckedChange={(checked) => updateAction(action.template_id, 'is_checked', checked as boolean)}
-                disabled={isEdit}
               />
               <div className="flex-1">
                 <label 
